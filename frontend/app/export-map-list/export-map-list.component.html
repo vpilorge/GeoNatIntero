@@ -1,0 +1,112 @@
+<div id="all">
+    <div class="row row-m">
+        <div class="container card">
+            <div id="title">
+            <h2>EXPORTS</h2>
+            <hr align="left" width="75%">
+            </div>
+            <div id="textPresentation">
+                <p>Voici la liste des exports disponibles. Ces exports ont été programmés par l'administration Géonature.</p>
+            </div>
+            <div id="textPresentation">
+                <p>Pour modifier cette liste ou avoir un export supplémentaire, veuillez contacter le service admin.</p>
+            </div>
+                <!-- Liste des exports disponibles au téléchargement -->
+            <div class="btn-group btn-group-vertical" data-toggle="buttons" id="button-export">
+              <label *ngFor='let export of this.exports$ | async; let i = index;' class="btn btn-primary active">
+                <input type="radio" name="options" [checked]="i==0" [id]="export.path">Export n°{{ i + 1 }} - {{ export.date | date: 'dd/MM/yyyy' }}
+              </label>
+            </div>
+
+            <div id="checkLicence">
+
+                <label for="licence">Acceptez la licence</label>
+                <input type="checkbox" class="form-control" id="licence" (click)="follow()" ngModel required/>
+
+            </div>
+
+            <div id="readlicence">
+            <a href="./licence.pdf" download>
+            <input type="button" class="btn btn-outline-secondary btn-sm pull-right" value="Télécharger la licence">
+            </a>
+            </div>
+
+
+        <hr align="right" width="75%">
+
+        <div id="choice">
+                <a routerLink=""><button type="submit" id="AccueilButton" class="btn btn-danger">Fermer</button></a>
+                <button [disabled]="!buttonDisabled" type="submit" id="AccueilButton" class="btn btn-success" data-toggle="modal" data-target="#myModal" data-backdrop="false" ng-model="ddl" ng-required="licence"> Télécharger </button>
+        </div>
+
+        </div>
+    </div>
+
+        <!-- Modal Téléchargement Popup-->
+        <div class="modal fade" id="myModal" role="dialog">
+          <div class="modal-dialog">
+
+            <!-- Modal content-->
+            <form [formGroup]="modalForm" class="modal-content">
+                        <div class="modal-header">
+                          <h4 class="modal-title">Configuration de l'export</h4>
+                        </div>
+
+                        <div class="modal-body">
+                                <!-- Formulaire pour le choix des standards et des formats de téléchargement des fichiers -->
+                                <br>
+                                <ul> <li> Choisir un format </li> </ul>
+                                <select name="Format" class=form-control required aria-required="false">
+                                        <option></option>
+                                        <option value="" disabled selected hidden>---</option>
+                                        <option value="un">RDF</option>
+                                        <option value="deux">Json</option>
+                                        <option value="trois">CSV</option>
+                                </select>
+                                <br>
+                                <ul> <li> Choisir un standard </li> </ul>
+                                <select class=form-control>
+                                        <option></option>
+                                        <option value="" disabled selected hidden>---</option>
+                                        <option value=un>Darwin Core</option>
+                                        <option value=deux>ABCD Schema</option>
+                                        <option value=trois>EML</option>
+                                </select>
+                                <br>
+
+                                <!-- Demande une adresse mail, nécessaire pour envoyer un mail à l'utilisateur pour signifier que l'envoi c'est bien passé. -->
+                                <hr width="50%">
+                                <div id="mailText">Saisir une adresse mail valide:</div>
+                                <br>
+
+                                <input class="form-control" id="adresseMail" formControlName="adresseMail" type="email" placeholder="---" style="display:block; margin:auto;" autocomplete="off" required pattern="^\w+([\.-]?\w+)*@\w+([\.-]?\w+)*(\.\w{2,3})+$">
+                                <br><br>
+
+                                <div class="alert alert-danger" [hidden]="!adresseMail.hasError('required')">Adresse mail obligatoire</div>
+                                <div class="alert alert-danger" [hidden]="!adresseMail.hasError('pattern')">Format non valide</div>
+
+                                <!-- Affichage d'une barre de progression lors du téléchargement du fichier -->
+                                <div class="telechargement" *ngIf="barHide">
+                                  Téléchargement en cours...
+                                </div>
+
+                                <div class="progress" *ngIf="barHide">
+                                        <div class="progress-bar progress-bar-success progress-bar-striped active" role="progressbar" aria-valuenow="70" aria-valuemin="0" aria-valuemax="100" style="width: 40%">
+                                                <span class="sr-only">70% effectué (success)</span>
+                                        </div>
+                                </div>
+                                <br>
+
+                        </div>
+
+                        <!-- Bouton de fermeture de la modal pop-up ou lancement du téléchargement -->
+                        <div class="modal-footer" id="choicePopup">
+                                <button type="submit" class="btn btn-danger" data-dismiss="modal" (click)="resetModal();" >Fermer</button>
+                                <button [disabled]="!modalForm.valid" id="widthButton" type="submit" class="btn btn-success" (click)="showme()">OK</button>
+                        </div>
+             </form>
+
+          </div>
+        </div>
+
+</div>

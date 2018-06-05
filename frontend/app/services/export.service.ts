@@ -89,8 +89,8 @@ export class ExportService {
       .takeWhile(data => data.status === '-2')
       .subscribe(
         data => {
+          // progress feedback:
           // https://www.postgresql.org/message-id/CADdR5ny_0dFwnD%2BsuBnV1Vz6NDKbFHeWoV1EDv9buhDCtc3aAA%40mail.gmail.com
-          // then update progressbar
           console.debug(data)
         },
         error => console.error(error),

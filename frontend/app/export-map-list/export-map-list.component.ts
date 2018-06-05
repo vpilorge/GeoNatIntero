@@ -28,15 +28,9 @@ import { Export, ExportService } from "../services/export.service";
   selector: "pnx-export-map-list",
   templateUrl: "export-map-list.component.html",
   styleUrls: ["./export-map-list.component.scss"],
-  providers: [/*MapListService*/]
+  providers: []
 })
 export class ExportMapListComponent {
-  // public varExport1 = "Export n°1";
-  // public varExport2 = "Export n°2";
-  // public varExport3 = "Expor   t n°3";
-  // public varExport4 = "Export n°4";
-  // public varExport5 = "Export n°5";
-  // public varExport6 = "Export n°6";
   exports$: Observable<Export[]>
   public modalForm : FormGroup;
   public buttonDisabled: boolean = false;
@@ -44,7 +38,6 @@ export class ExportMapListComponent {
   public today = Date.now();
   @ViewChild(NgbModal) public modalCol: NgbModal;
   constructor(
-    // private _http: HttpClient,
     private store: ExportService,
     private _commonService: CommonService,
     private _translate: TranslateService,

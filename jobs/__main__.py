@@ -21,14 +21,17 @@ loop = asyncio.get_event_loop()
 loop.set_debug = True
 
 
+def ts_to_export_fname(ts):
+    return (datetime.strptime(str(ts), '%Y-%m-%d %H:%M:%S.%f') -
+            datetime.utcfromtimestamp(0)).total_seconds()
+
+
 def export_csv(args):
     with psycopg2.connect(dsn) as db:
         with db.cursor() as cursor:
             submission_ts, columns = args
 
-            submissionID = (
-                datetime.strptime(str(submission_ts), '%Y-%m-%d %H:%M:%S.%f') -
-                datetime.utcfromtimestamp(0)).total_seconds()
+            submissionID = ts_to_export_fname(submission_ts)
 
             if (isinstance(columns, str) or isinstance(columns, unicode)):
                 columns = columns.split(',')
@@ -53,14 +56,11 @@ def export_csv(args):
                     db.commit()
 
 
-async def process(queue=queue, loop=loop):
-    with concurrent.futures.ProcessPoolExecutor() as executor:
+async def process(executor, queue=queue, loop=loop):
         if queue.empty():
             return None
         task = await queue.get()
-        func = task['func']
-        args = task['args']
-        return loop.run_in_executor(executor, func, args)
+        return loop.run_in_executor(executor, task['func'], task['args'])
 
 
 async def run(queue=queue, num_workers=num_workers):
@@ -68,14 +68,14 @@ async def run(queue=queue, num_workers=num_workers):
         with db.cursor() as cursor:
             cursor.execute('SELECT submission, selection FROM gn_intero.t_exports WHERE "start" IS NULL AND status=-2 ORDER BY submission ASC;')
             for record in cursor.fetchall():
-                submissionID = (
-                    datetime.strptime(str(record[0]), '%Y-%m-%d %H:%M:%S.%f') -
-                    datetime.utcfromtimestamp(0)).total_seconds()
+                submissionID = ts_to_export_fname(record[0])
                 queue.put_nowait({'func': export_csv, 'args': (record)})
-    while not queue.empty():
-        tasks = [process(queue) for i in range(num_workers)]
-        for future in asyncio.as_completed(tasks):
-            result = await future
+
+    with concurrent.futures.ProcessPoolExecutor() as executor:
+        while not queue.empty():
+            tasks = [process(executor, queue) for i in range(num_workers)]
+            for future in asyncio.as_completed(tasks):
+                result = await future
 
 
 if __name__ == '__main__':

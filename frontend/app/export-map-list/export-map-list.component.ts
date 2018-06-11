@@ -34,25 +34,59 @@ export class ExportMapListComponent {
   exports$: Observable<Export[]>
   public modalForm : FormGroup;
   public buttonDisabled: boolean = false;
-  public barHide: boolean = false;
   public today = Date.now();
+  public barHide: boolean = false;
+  public closeResult: string;
   @ViewChild(NgbModal) public modalCol: NgbModal;
   constructor(
     private store: ExportService,
     private _commonService: CommonService,
     private _translate: TranslateService,
     private _router: Router,
-    public ngbModal: NgbModal,
+    private modalService: NgbModal,
     private _fb: FormBuilder,
     private _dynformService: DynamicFormService) {
 
     this.modalForm = this._fb.group({
-      adresseMail:['', Validators.compose([Validators.required, Validators.email])]
+      adresseMail:['', Validators.compose([Validators.required, Validators.email])],
+      chooseFormat:['', Validators.required],
+      chooseStandard:['', Validators.required]
     });
+
     this.exports$ = this.store.exports;
     this.store.getExports();
   }
 
+  get chooseFormat() {
+    return this.modalForm.get('chooseFormat');
+  }
+
+  get chooseStandard() {
+    return this.modalForm.get('chooseStandard');
+  }
+
+  //Fonction pour envoyer un mail à l'utilisateur lorsque le ddl est terminé.
+  get adresseMail() {
+    return this.modalForm.get('adresseMail');
+  }
+
+  open(content) {
+    this.modalService.open(content).result.then((result) => {
+      this.closeResult = `Closed with: ${result}`;
+    }, (reason) => {
+      this.closeResult = `Dismissed ${this.getDismissReason(reason)}`;
+    });
+  }
+
+  private getDismissReason(reason: any): string {
+    if (reason === ModalDismissReasons.ESC) {
+      return 'by pressing ESC';
+    } else if (reason === ModalDismissReasons.BACKDROP_CLICK) {
+      return 'by clicking on a backdrop';
+    } else {
+      return  `with: ${reason}`;
+    }
+  }
   //Fonction qui bloque le boutton de validation tant que la licence n'est pas checkée
   follow() {
     this.buttonDisabled = !this.buttonDisabled;
@@ -70,8 +104,5 @@ export class ExportMapListComponent {
   resetModal() {
     this.modalForm.reset();
   }
-
-  //Fonction pour envoyer un mail à l'utilisateur lorsque le ddl est terminé.
-  get adresseMail() { return this.modalForm.get('adresseMail'); }
 
 }

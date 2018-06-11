@@ -55,7 +55,7 @@ def getExport(export):
     try:
         return send_from_directory(
             os.path.join(current_app.static_folder, 'exports'),
-            export, as_attachment=True)
+            export, mimetype='text/csv', as_attachment=True)
     except Exception as e:
         return str(e)
 

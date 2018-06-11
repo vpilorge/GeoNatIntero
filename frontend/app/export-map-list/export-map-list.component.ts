@@ -16,12 +16,27 @@ import {
 } from "@angular/forms";
 import { Router } from "@angular/router";
 import { Observable } from "rxjs/Observable";
+import 'rxjs/add/observable/interval';
+import 'rxjs/add/operator/do';
+import 'rxjs/add/operator/map';
 import { TranslateService } from "@ngx-translate/core";
 import { NgbModal, ModalDismissReasons } from "@ng-bootstrap/ng-bootstrap";
 import { CommonService } from "@geonature_common/service/common.service";
 import { DynamicFormComponent } from "@geonature_common/form/dynamic-form/dynamic-form.component";
 import { DynamicFormService } from "@geonature_common/form/dynamic-form/dynamic-form.service";
 import { Export, ExportService } from "../services/export.service";
+
+
+
+@Component({
+  selector: 'ng-pbar',
+  template: `<p><ngb-progressbar type="info" [value]="completion.percent | async" [striped]="true" [animated]="true"></ngb-progressbar></p>`
+})
+export class NgPBar {
+  completion = {
+    percent: Observable.interval(200).map(val => val % 100).do(val => console.log(val))
+  }
+}
 
 
 @Component({
@@ -37,6 +52,7 @@ export class ExportMapListComponent {
   public today = Date.now();
   public barHide: boolean = false;
   public closeResult: string;
+  public pbar_value;
   @ViewChild(NgbModal) public modalCol: NgbModal;
   constructor(
     private store: ExportService,
@@ -97,7 +113,7 @@ export class ExportMapListComponent {
     this.barHide = !this.barHide;
     const exportList = window.document.querySelectorAll('input[name="options"]:checked');
     const submissionID = /export_(\d+\.\d+)\.csv/.exec(exportList[0].id)[1]
-    this.store.downloadExport(parseFloat(submissionID))
+    this.store.downloadExport(parseFloat(submissionID), this.pbar_value)
   }
 
   //Fonction pour avoir un modal vierge si l'on ferme puis réouvre le modal

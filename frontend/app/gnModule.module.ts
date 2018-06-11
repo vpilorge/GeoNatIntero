@@ -4,7 +4,7 @@ import { Routes, RouterModule } from "@angular/router";
 import { HttpClientModule } from "@angular/common/http";
 import { GN2CommonModule } from "@geonature_common/GN2Common.module";
 import { TranslateHttpLoader } from "@ngx-translate/http-loader";
-import { ExportMapListComponent } from "./export-map-list/export-map-list.component";
+import { ExportMapListComponent, NgPBar } from "./export-map-list/export-map-list.component";
 import { ExportService } from "./services/export.service";
 
 const routes: Routes = [
@@ -19,7 +19,8 @@ const routes: Routes = [
     RouterModule.forChild(routes)
   ],
   declarations: [
-    ExportMapListComponent
+    ExportMapListComponent,
+    NgPBar
   ],
   providers: [
     ExportService

@@ -54,34 +54,33 @@ export class ExportService {
     )
   }
 
-  downloadExport(submissionID: number) {
+  downloadExport(submissionID: number, pbar: any) {
     const url = `${apiEndpoint}/exports/export_${submissionID}.csv`
     // window.open(url)
+    console.log(`pbar: ${pbar}`)
+
+
     this._api.get(url, {
-      headers: new HttpHeaders()
-        .set('Content-Type', 'text/csv'),
-        observe: 'events',
-        reportProgress: true,
-        responseType: 'text',
-      }).subscribe(event => {
-          console.debug('start', event.type)
-          if (event.type === HttpEventType.DownloadProgress) {
-            console.debug('dload', event)
-              let kbLoaded = Math.round(event.loaded / 1024);
-              // const percentage = 100 / event.total * event.loaded;
-              console.log(`Downloading ${kbLoaded}Kb.`);
-          }
-          if (event.type === HttpEventType.Response) {
-            console.log(event.body);
-          }
-        },
-        (err: HttpErrorResponse) => {
-          console.log(err.error);
-          console.log(err.name);
-          console.log(err.message);
-          console.log(err.status);
-        }
-    );
+      headers: new HttpHeaders().set('Content-Type', 'text/csv'),
+      observe: 'events',
+      responseType: 'text',
+      reportProgress: true,
+    }).subscribe(event => {
+      if (event.type === HttpEventType.DownloadProgress) {
+          let kbLoaded = Math.round(event.loaded / 1024);
+          // const percentage = 100 / event.total * event.loaded;
+          console.log(`Downloading ${kbLoaded}Kb.`);
+      }
+      if (event.type === HttpEventType.Response) {
+        console.log(event.body);
+      }
+    },
+    (err: HttpErrorResponse) => {
+      console.log(err.error);
+      console.log(err.name);
+      console.log(err.message);
+      console.log(err.status);
+    });
   }
 
   getExportProgress(submissionID: number) {

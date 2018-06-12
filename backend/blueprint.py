@@ -63,6 +63,7 @@ def getExport(export):
 @blueprint.route('/exports')
 # @fnauth.check_auth_cruved('R')
 def getExports():
+    # FIXME: poc specs !
     # midnight = datetime.combine(datetime.today(), time.min)
     # .filter(Export.end>=midnight)\
     exports = Export.query\

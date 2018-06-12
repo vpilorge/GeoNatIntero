@@ -29,6 +29,7 @@ const apiEndpoint='http://localhost:8000/interop';
 export class ExportService {
   private store: { exports: Export[] }
   private _exports: BehaviorSubject<Export[]>
+  private _blob: Blob = null
 
   constructor(private _api: HttpClient) {
     this.store = { exports: new Array<Export>() }
@@ -54,33 +55,43 @@ export class ExportService {
     )
   }
 
-  downloadExport(submissionID: number, pbar: any) {
+  downloadExport(submissionID: number) {
     const url = `${apiEndpoint}/exports/export_${submissionID}.csv`
     // window.open(url)
-    console.log(`pbar: ${pbar}`)
-
-
     this._api.get(url, {
       headers: new HttpHeaders().set('Content-Type', 'text/csv'),
       observe: 'events',
-      responseType: 'text',
+      responseType: 'blob',
       reportProgress: true,
-    }).subscribe(event => {
-      if (event.type === HttpEventType.DownloadProgress) {
-          let kbLoaded = Math.round(event.loaded / 1024);
-          // const percentage = 100 / event.total * event.loaded;
-          console.log(`Downloading ${kbLoaded}Kb.`);
+    }).subscribe(
+      event => {
+        if (event.type === HttpEventType.DownloadProgress) {
+            let kbLoaded = Math.round(event.loaded / 1024);
+            // const percentage = 100 / event.total * event.loaded;
+            console.log(`Downloading ${kbLoaded}Kb.`);
+        }
+        if (event.type === HttpEventType.Response) {
+          // this.blob = new Blob([event.body], {type: event.headers.get("Content-Type")});
+          this._blob = new Blob([event.body], {type: 'text/csv'});
+        }
+      },
+      (err: HttpErrorResponse) => {
+        console.log(err.error);
+        console.log(err.name);
+        console.log(err.message);
+        console.log(err.status);
+      },
+      () => {
+        let link = document.createElement("a")
+        link.href = URL.createObjectURL(this._blob)
+        link.setAttribute('visibility','hidden')
+        link.download = submissionID.toString()
+        link.onload = function() { URL.revokeObjectURL(link.href) }
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
       }
-      if (event.type === HttpEventType.Response) {
-        console.log(event.body);
-      }
-    },
-    (err: HttpErrorResponse) => {
-      console.log(err.error);
-      console.log(err.name);
-      console.log(err.message);
-      console.log(err.status);
-    });
+    );
   }
 
   getExportProgress(submissionID: number) {

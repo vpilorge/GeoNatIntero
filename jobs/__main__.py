@@ -10,6 +10,7 @@ import psycopg2
 dsn = "dbname='geonaturedb' host='localhost' user='geonatuser' password='monpassachanger'"
 exports_path='/home/pat/geonature/backend/static/exports/export_{id}.{ext}'
 selector = "COPY (SELECT {} FROM gn_intero.v_export) TO STDOUT WITH CSV HEADER DELIMITER ',';"
+# selector = "COPY (select json_agg(t) from (select {} from gn_intero.v_export) as t;) TO STDOUT;"
 num_workers = max(1, len(os.sched_getaffinity(0)) - 1)
 queue = asyncio.Queue(maxsize=0)
 

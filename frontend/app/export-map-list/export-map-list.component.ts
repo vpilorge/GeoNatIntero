@@ -52,8 +52,8 @@ export class ExportMapListComponent {
   public today = Date.now();
   public barHide: boolean = false;
   public closeResult: string;
-  public pbar_value;
-  @ViewChild(NgbModal) public modalCol: NgbModal;
+  @ViewChild(NgbModal)
+  @ViewChild(NgPBar)
   constructor(
     private store: ExportService,
     private _commonService: CommonService,
@@ -113,7 +113,7 @@ export class ExportMapListComponent {
     this.barHide = !this.barHide;
     const exportList = window.document.querySelectorAll('input[name="options"]:checked');
     const submissionID = /export_(\d+\.\d+)\.csv/.exec(exportList[0].id)[1]
-    this.store.downloadExport(parseFloat(submissionID), this.pbar_value)
+    this.store.downloadExport(parseFloat(submissionID))
   }
 
   //Fonction pour avoir un modal vierge si l'on ferme puis réouvre le modal

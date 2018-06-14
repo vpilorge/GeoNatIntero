@@ -9,7 +9,7 @@ from geonature.utils.errors import GeonatureApiError
 # from pypnusershub.db.tools import InsufficientRightsError
 # from pypnusershub import routes as fnauth
 
-from .models import Export
+from .models import Export, Format, format_map_ext
 # FIXME: import backend/frontend/jobs shared conf
 
 
@@ -20,15 +20,14 @@ blueprint = Blueprint('export', __name__)
 # @fnauth.check_auth_cruved('R')
 def add():
     selection = request.args.get('selection', None)
-    export = Export(selection)
-    submissionID = export.submission
+    format = request.args.get('format', Format.CSV)
+    export = Export(selection, format)
+    submissionID = export.id
     DB.session.add(export)
     DB.session.commit()
     # utc datetime Export.submission -> µs timestamp submissionID
-    submissionID = (
-        datetime.strptime(str(submissionID), '%Y-%m-%d %H:%M:%S.%f') -
-        datetime.utcfromtimestamp(0)).total_seconds()
-    return jsonify(id=submissionID, selection=selection)
+    submissionID = export.ts()
+    return jsonify(id=submissionID, selection=selection, format=format)
 
 
 @blueprint.route('/progress/<submissionID>')
@@ -36,10 +35,11 @@ def progress(submissionID):
     try:
         # µs timestamp submissionID -> utc datetime Export.submission
         submission = datetime.utcfromtimestamp(float(submissionID))
-        # ranking: 'SELECT COUNT(submission) FROM gn_intero.t_exports WHERE status = -2 AND submission < %s', submission)
-        export = Export.query.get(submission)
+        # ranking: 'SELECT COUNT(id) FROM gn_intero.t_exports WHERE status = -2 AND id < %s', id)
+        export = Export.query.get(id)
         return jsonify(
                 submission=submission,
+                format=format_map_ext[format],
                 status=str(export.status),
                 start=str(export.start),
                 end=str(export.end),
@@ -55,7 +55,7 @@ def getExport(export):
     try:
         return send_from_directory(
             os.path.join(current_app.static_folder, 'exports'),
-            export, mimetype='text/csv', as_attachment=True)
+            export, mimetype='text/csv', as_attachment=True)  # TODO: json mimetype
     except Exception as e:
         return str(e)
 
@@ -67,16 +67,12 @@ def getExports():
     # midnight = datetime.combine(datetime.today(), time.min)
     # .filter(Export.end>=midnight)\
     exports = Export.query\
-                    .filter(Export.status==0)\
+                    .filter(Export.status == 0)\
                     .order_by(Export.end.desc())\
                     .limit(6)\
                     .all()
+    export_fname = os.path.join(current_app.static_folder, 'exports', 'export_{id}.{ext}'.format(id=export.ts(), ext='csv'))  # TODO: JSON
     exports = [
-        ('export_{id}.{ext}'.format(
-            id=(datetime.strptime(str(export.submission), '%Y-%m-%d %H:%M:%S.%f') -
-            datetime.utcfromtimestamp(0)).total_seconds(), ext='csv'), export.submission)
-        for export in exports if os.path.exists(  # and isfile()
-            os.path.join(current_app.static_folder, 'exports', 'export_{id}.{ext}'.format(
-                id=(datetime.strptime(str(export.submission), '%Y-%m-%d %H:%M:%S.%f') -
-                datetime.utcfromtimestamp(0)).total_seconds(), ext='csv')))]
+        (export_fname, export.id)
+        for export in exports if os.path.exists(export_fname) and os.path.isfile(export_fname)]
     return jsonify(exports)

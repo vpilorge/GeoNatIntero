@@ -1,4 +1,4 @@
---
+  --
 -- PostgreSQL database dump
 --
 
@@ -58,7 +58,7 @@ CREATE TABLE cor_exports_roles (
 );
 
 
-ALTER TABLE cor_exports_roles OWNER TO geonatuser;
+-- ALTER TABLE cor_exports_roles OWNER TO geonatuser;
 
 -- Table: gn_intero.t_exports
 
@@ -71,7 +71,8 @@ CREATE TABLE gn_intero.t_exports
     log text COLLATE pg_catalog."default",
     start date,
     "end" date,
-    submission TIMESTAMP NOT NULL,
+    id TIMESTAMP NOT NULL,
+    format integer NOT NULL,
     CONSTRAINT t_exports_pkey PRIMARY KEY (submission)
 )
 WITH (
@@ -79,8 +80,8 @@ WITH (
 )
 TABLESPACE pg_default;
 
-ALTER TABLE gn_intero.t_exports
-    OWNER to geonatuser;
+-- ALTER TABLE gn_intero.t_exports
+--     OWNER to geonatuser;
 --
 -- TOC entry 365 (class 1259 OID 95805)
 -- Name: v_export; Type: VIEW; Schema: gn_intero; Owner: geonatuser

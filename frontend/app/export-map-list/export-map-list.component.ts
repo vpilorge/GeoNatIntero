@@ -112,7 +112,7 @@ export class ExportMapListComponent {
   showme() {
     this.barHide = !this.barHide;
     const exportList = window.document.querySelectorAll('input[name="options"]:checked');
-    const submissionID = /export_(\d+\.\d+)\.csv/.exec(exportList[0].id)[1]
+    const submissionID = /export_(\d+\.\d+)\.csv/.exec(exportList[0].id)[1]  // TODO: JSON
     this.store.downloadExport(parseFloat(submissionID))
   }
 

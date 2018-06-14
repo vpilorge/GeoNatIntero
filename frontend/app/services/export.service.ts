@@ -10,8 +10,8 @@ import {
 import { Observable } from "rxjs/Observable";
 import { BehaviorSubject } from 'rxjs/BehaviorSubject';
 import { share } from 'rxjs/operators/share';
-import { interval } from 'rxjs/observable/interval';
-// import 'rxjs/Rx';  // Observer.interval
+import 'rxjs/add/observable/interval';
+import 'rxjs/add/operator/takeWhile';
 
 import { AppConfig } from "@geonature_config/app.config";
 
@@ -42,6 +42,7 @@ export class ExportService {
 
   getExports() {
     /*let exportList = */
+    // this._api.get<Export[]>(`${apiEndpoint}/exports`).subscribe(
     this._api.get(`${apiEndpoint}/exports`).subscribe(
       (exports: Export[]) => {
         this.store.exports = exports.map(x => new Export(x[0], x[1]));
@@ -55,11 +56,11 @@ export class ExportService {
     )
   }
 
-  downloadExport(submissionID: number) {
-    const url = `${apiEndpoint}/exports/export_${submissionID}.csv`
+  downloadExport(submissionID: number, ext='csv') {
+    const url = `${apiEndpoint}/exports/export_${submissionID}.${ext}`
     // window.open(url)
     this._api.get(url, {
-      headers: new HttpHeaders().set('Content-Type', 'text/csv'),
+      headers: new HttpHeaders().set('Content-Type', `text/${ext}`),
       observe: 'events',
       responseType: 'blob',
       reportProgress: true,
@@ -72,7 +73,7 @@ export class ExportService {
         }
         if (event.type === HttpEventType.Response) {
           // this.blob = new Blob([event.body], {type: event.headers.get("Content-Type")});
-          this._blob = new Blob([event.body], {type: 'text/csv'});
+          this._blob = new Blob([event.body], {type: `text/${ext}`});
         }
       },
       (err: HttpErrorResponse) => {
@@ -85,7 +86,7 @@ export class ExportService {
         let link = document.createElement("a")
         link.href = URL.createObjectURL(this._blob)
         link.setAttribute('visibility','hidden')
-        link.download = submissionID.toString()
+        link.download = `${submissionID}.${ext}`
         link.onload = function() { URL.revokeObjectURL(link.href) }
         document.body.appendChild(link)
         link.click()
@@ -94,10 +95,11 @@ export class ExportService {
     );
   }
 
-  getExportProgress(submissionID: number) {
+
+  getExportProgress(submissionID: number, ext='csv') {
     let progress = Observable.interval(1500)
       .switchMap(() => this._api.get(`${apiEndpoint}/progress/${submissionID}`))
-      .map(data => data.json())
+      .map(data => data.json())                   // TODO: export interface ExportProgress {}
       .takeWhile(data => data.status === '-2')
       .subscribe(
         data => {
@@ -108,7 +110,7 @@ export class ExportService {
         error => console.error(error),
         () => {
           progress.unsubscribe();
-          window.location.href = `${apiEndpoint}/exports/export_${submissionID}.csv`;
+          window.open(`${apiEndpoint}/exports/export_${submissionID}.${data.format}`);
         });
   }
 }

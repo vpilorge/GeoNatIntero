@@ -56,15 +56,14 @@
                                 <br>
                                 <ul> <li> Choisir un format </li> </ul>
                                 <select class="form-control" id="chooseFormat" formControlName="chooseFormat" required autocomplete="off">
-                                        <option></option>
-                                        <option value="un">CSV</option>
-                                        <option value="deux">JSON</option>
-                                        <option value="trois">RDF</option>
+                                        <option value="csv" selected>CSV</option>
+                                        <option value="json">JSON</option>
+                                        <option value="rdf">RDF</option>
                                 </select>
                                 <br>
                                 <ul> <li> Choisir un standard </li> </ul>
                                 <select class=form-control id="chooseStandard" formControlName="chooseStandard" required autocomplete="off">
-                                        <option value=un>Darwin Core</option>
+                                        <option value=un selected>Darwin Core</option>
                                         <option value=deux disabled>ABCD Schema</option>
                                         <option value=trois disabled>EML</option>
                                 </select>

@@ -8,6 +8,7 @@ import asyncio
 import concurrent.futures
 from datetime import datetime
 from enum import IntEnum
+import hashlib
 # import gzip
 import psycopg2
 
@@ -66,40 +67,44 @@ class Standard(IntEnum):
     EML = 4
 
 
-def export(ts, columns, format):
+def export(definition):
+    print(definition)
+
     def ts_to_export_fname(ts):
         return (datetime.strptime(str(ts), '%Y-%m-%d %H:%M:%S.%f') - datetime.utcfromtimestamp(0)).total_seconds()
 
     with psycopg2.connect(dsn) as db:
         with db.cursor() as cursor:
-
-            fname = ts_to_export_fname(ts)
+            id, columns, format = definition
+            fname = ts_to_export_fname(id)
 
             if isinstance(columns, str):
                 columns = columns.split(',')
 
-            extension = format_map_ext[format]
-            statement = format_map_func[format]()
-            statement = statement.format(
-                ','.join(['"{}"'.format(column) for column in columns])
-                if len(columns) > 1 else '"{}"'.format(columns[0]))
+                extension = format or Format.CSV
+                extension = format_map_ext[extension]
+
+                statement = format_map_func[format]()
+                statement = statement.format(
+                    ','.join(['"{}"'.format(column) for column in columns])
+                    if len(columns) > 1 else '"{}"'.format(columns[0]))
 
             # with gzip.open
             with open(exports_path.format(id=fname, ext=extension), 'wb') as export_file:
                 # log_start
-                cursor.execute('UPDATE gn_intero.t_exports SET start=NOW() WHERE id=%s', (ts,))
+                cursor.execute('UPDATE gn_intero.t_exports SET start=NOW() WHERE id=%s', (id,))
                 try:
 
                     cursor.copy_expert(statement, export_file)
 
                     # log_end
                     cursor.execute('UPDATE gn_intero.t_exports SET ("end", "log", "status")=(NOW(), %s, %s) WHERE id=%s',
-                                   (cursor.rowcount, 0, ts))
+                                   (cursor.rowcount, 0, id))
                 except (psycopg2.InternalError, psycopg2.ProgrammingError, Exception) as e:
                     db.rollback()
                     # log_fault
                     cursor.execute('UPDATE gn_intero.t_exports SET ("end", "log", "status")=(NULL, %s, -1) WHERE id=%s',
-                                   (str(e), ts))
+                                   (str(e), id))
                 finally:
                     db.commit()
 
@@ -114,8 +119,9 @@ async def process(executor, queue=queue, loop=loop):
 async def run(queue=queue, num_workers=num_workers):
     with psycopg2.connect(dsn) as db:
         with db.cursor() as cursor:
-            cursor.execute('SELECT id, selection, format FROM gn_intero.t_exports WHERE "start" IS NULL AND status=-2 ORDER BY id ASC;')
+            cursor.execute('SELECT id, standard, format FROM gn_intero.t_exports WHERE "start" IS NULL AND status=-2 ORDER BY id ASC;')
             for record in cursor.fetchall():
+                print(record)
                 queue.put_nowait({'func': export, 'args': (record)})
 
     with concurrent.futures.ProcessPoolExecutor() as executor:

@@ -1,16 +1,15 @@
 import os
-from datetime import datetime, time
-import psycopg2
 from flask import (
-    Blueprint, request, current_app, send_from_directory, request, jsonify)
+    Blueprint, request, current_app, send_from_directory, jsonify)
 from geonature.utils.env import DB
-from geonature.utils.errors import GeonatureApiError
+# from geonature.utils.errors import GeonatureApiError
 # from geonature.core.users.models import TRoles, UserRigth
 # from pypnusershub.db.tools import InsufficientRightsError
 # from pypnusershub import routes as fnauth
 
-from .models import Export, Format, format_map_ext
-# FIXME: import backend/frontend/jobs shared conf
+from .models import (Export, Format, format_map_ext, format_map_mime,
+                     Standard, standard_map_label)
+# FIXME: backend/frontend/jobs shared conf
 
 
 blueprint = Blueprint('export', __name__)
@@ -19,43 +18,47 @@ blueprint = Blueprint('export', __name__)
 @blueprint.route('/add', methods=['GET'])
 # @fnauth.check_auth_cruved('R')
 def add():
-    selection = request.args.get('selection', None)
-    format = request.args.get('format', Format.CSV)
-    export = Export(selection, format)
-    submissionID = export.id
-    DB.session.add(export)
+    standard = request.args.get('standard', Standard)
+    formats = [Format.CSV, Format.JSON]
+    export = None
+    for format in formats:
+        export = Export(standard, format)
+        DB.session.add(export)
     DB.session.commit()
-    # utc datetime Export.submission -> µs timestamp submissionID
     submissionID = export.ts()
-    return jsonify(id=submissionID, selection=selection, format=format)
+    # utc datetime Export.submission -> µs timestamp submissionID
+    return jsonify(id=submissionID, standard=standard, format=format)
 
 
-@blueprint.route('/progress/<submissionID>')
-def progress(submissionID):
-    try:
-        # µs timestamp submissionID -> utc datetime Export.submission
-        submission = datetime.utcfromtimestamp(float(submissionID))
-        # ranking: 'SELECT COUNT(id) FROM gn_intero.t_exports WHERE status = -2 AND id < %s', id)
-        export = Export.query.get(id)
-        return jsonify(
-                submission=submission,
-                format=format_map_ext[format],
-                status=str(export.status),
-                start=str(export.start),
-                end=str(export.end),
-                log=str(export.log)
-            ) if export else jsonify(submission='null')
-    except ValueError as e:
-        return jsonify(str(e))
+# @blueprint.route('/progress/<submissionID>')
+# def progress(submissionID):
+#     try:
+#         # µs timestamp submissionID -> utc datetime Export.submission
+#         submission = datetime.utcfromtimestamp(float(submissionID))
+#         # ranking: 'SELECT COUNT(id) FROM gn_intero.t_exports WHERE status = -2 AND id < %s', id)  # noqa
+#         export = Export.query.get(id)
+#         return jsonify(
+#                 submission=submission,
+#                 format=format_map_ext[format],
+#                 status=str(export.status),
+#                 start=str(export.start),
+#                 end=str(export.end),
+#                 log=str(export.log)
+#             ) if export else jsonify(submission='null')
+#     except ValueError as e:
+#         return jsonify(str(e))
 
 
 @blueprint.route('/exports/<path:export>')
 # @fnauth.check_auth_cruved('R')
 def getExport(export):
+    # if not file.exists:
+        # trigger export etl
     try:
         return send_from_directory(
             os.path.join(current_app.static_folder, 'exports'),
-            export, mimetype='text/csv', as_attachment=True)  # TODO: json mimetype
+            export,  # mimetype='',  # FIXME: mimetypes
+            as_attachment=True)
     except Exception as e:
         return str(e)
 
@@ -63,16 +66,25 @@ def getExport(export):
 @blueprint.route('/exports')
 # @fnauth.check_auth_cruved('R')
 def getExports():
-    # FIXME: poc specs !
-    # midnight = datetime.combine(datetime.today(), time.min)
-    # .filter(Export.end>=midnight)\
-    exports = Export.query\
-                    .filter(Export.status == 0)\
-                    .order_by(Export.end.desc())\
-                    .limit(6)\
-                    .all()
-    export_fname = os.path.join(current_app.static_folder, 'exports', 'export_{id}.{ext}'.format(id=export.ts(), ext='csv'))  # TODO: JSON
-    exports = [
-        (export_fname, export.id)
-        for export in exports if os.path.exists(export_fname) and os.path.isfile(export_fname)]
-    return jsonify(exports)
+    exports_list = Export.query\
+                         .filter(Export.status >= 0)\
+                         .group_by(Export.standard, Export.id)\
+                         .all()
+    standards = {}
+    for export in exports_list:
+        std = standard_map_label[export.standard]
+        if not standards.get(std, None):
+            standards[std] = [export.as_dict()]
+        else:
+            standards[std].append(export.as_dict())
+    return jsonify(standards)
+
+
+def fname(export):
+    # super sloooow:
+    # if os.path.exists(fname(export)) and os.path.isfile(fname(export))]
+    return os.path.join(
+        current_app.static_folder, 'exports',
+        'export_{std}_{id}.{ext}'.format(
+            std=standard_map_label[export.standard],
+            id=export.ts(), ext=format_map_ext[export.format]))

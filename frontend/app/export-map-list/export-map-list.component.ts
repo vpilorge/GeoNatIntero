@@ -53,7 +53,7 @@ export class ExportMapListComponent {
   public barHide: boolean = false;
   public closeResult: string;
   @ViewChild(NgbModal)
-  @ViewChild(NgPBar)
+  // @ViewChild(NgPBar)
   constructor(
     private store: ExportService,
     private _commonService: CommonService,
@@ -106,14 +106,18 @@ export class ExportMapListComponent {
   //Fonction qui bloque le boutton de validation tant que la licence n'est pas checkée
   follow() {
     this.buttonDisabled = !this.buttonDisabled;
+    // this.showme()
   }
 
   //Fonction qui affiche la barre de téléchargement après validation
   showme() {
     this.barHide = !this.barHide;
-    const exportList = window.document.querySelectorAll('input[name="options"]:checked');
-    const submissionID = /export_(\d+\.\d+)\.csv/.exec(exportList[0].id)[1]  // TODO: JSON
-    this.store.downloadExport(parseFloat(submissionID))
+
+    var choice = window.document.querySelector('input[name="options"]:checked');
+
+    console.log('format:', this.chooseFormat.value)
+    console.log('export_id:', choice.id)
+    this.store.downloadExport(parseFloat(choice.id))
   }
 
   //Fonction pour avoir un modal vierge si l'on ferme puis réouvre le modal

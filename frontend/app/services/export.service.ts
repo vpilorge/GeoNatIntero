@@ -20,7 +20,12 @@ import { AppConfig } from "@geonature_config/app.config";
 //   date: Date;
 // }
 export class Export {
-  constructor(public path: string, public date: Date) {}
+  constructor(
+    public path: string,
+    public date: Date,
+    public standard: string,
+    public extension: string,
+  ) {}
 }
 
 const apiEndpoint='http://localhost:8000/interop';
@@ -43,9 +48,21 @@ export class ExportService {
   getExports() {
     /*let exportList = */
     // this._api.get<Export[]>(`${apiEndpoint}/exports`).subscribe(
-    this._api.get(`${apiEndpoint}/exports`).subscribe(
-      (exports: Export[]) => {
-        this.store.exports = exports.map(x => new Export(x[0], x[1]));
+      this._api.get(`${apiEndpoint}/exports`).subscribe(
+      (standards) => {
+        // this.store.exports = exports;
+        // const standards = Object.keys(response)
+        let exports = []
+        for (var x in standards) {
+          console.debug(standards[x])
+          for (var xp in standards[x]) {
+            exports.push(standards[x][xp])
+          }
+        }
+        console.debug('exports:', exports)
+        // this.store.exports = exports.map(x => new Export(x[0], x[1], x[2], x[4]));
+        // this.store.exports = exports.map(x => console.debug(x));
+        this.store.exports = exports
         this._exports.next((<any>Object).assign({}, this.store).exports);
         console.debug(`getExports(): ${this.store.exports.length} exports.`)
       },
@@ -58,6 +75,7 @@ export class ExportService {
 
   downloadExport(submissionID: number, ext='csv') {
     const url = `${apiEndpoint}/exports/export_${submissionID}.${ext}`
+    console.log(url)
     // window.open(url)
     this._api.get(url, {
       headers: new HttpHeaders().set('Content-Type', `text/${ext}`),

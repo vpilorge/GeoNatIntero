@@ -15,62 +15,52 @@ import 'rxjs/add/operator/takeWhile';
 
 import { AppConfig } from "@geonature_config/app.config";
 
-// interface Export {
-//   path: string;
-//   date: Date;
-// }
-export class Export {
-  constructor(
-    public path: string,
-    public date: Date,
-    public standard: string,
-    public extension: string,
-  ) {}
+
+export interface Export {
+  label: string;
+  id: string;
+  date: Date;
+  standard: string;
+  selection: string;
+  extension: string;
 }
 
 const apiEndpoint='http://localhost:8000/interop';
 
 @Injectable()
 export class ExportService {
-  private store: { exports: Export[] }
-  private _exports: BehaviorSubject<Export[]>
+  exports: BehaviorSubject<Export[]>
+  labels: BehaviorSubject<string[]>
   private _blob: Blob = null
 
   constructor(private _api: HttpClient) {
-    this.store = { exports: new Array<Export>() }
-    this._exports = <BehaviorSubject<Export[]>>new BehaviorSubject([]);
-  }
-
-  get exports() {
-    return this._exports.asObservable().pipe(share())
+    this.exports = <BehaviorSubject<Export[]>>new BehaviorSubject([]);
+    this.labels = <BehaviorSubject<string[]>>new BehaviorSubject([]);
   }
 
   getExports() {
-    /*let exportList = */
-    // this._api.get<Export[]>(`${apiEndpoint}/exports`).subscribe(
-      this._api.get(`${apiEndpoint}/exports`).subscribe(
-      (standards) => {
-        // this.store.exports = exports;
-        // const standards = Object.keys(response)
-        let exports = []
-        for (var x in standards) {
-          console.debug(standards[x])
-          for (var xp in standards[x]) {
-            exports.push(standards[x][xp])
-          }
-        }
-        console.debug('exports:', exports)
-        // this.store.exports = exports.map(x => new Export(x[0], x[1], x[2], x[4]));
-        // this.store.exports = exports.map(x => console.debug(x));
-        this.store.exports = exports
-        this._exports.next((<any>Object).assign({}, this.store).exports);
-        console.debug(`getExports(): ${this.store.exports.length} exports.`)
+    this._api.get(`${apiEndpoint}/exports`).subscribe(
+      (exports: Export[]) => {
+        // console.debug('export:', exports)
+        this.exports.next(exports);
       },
       error => console.error(error),
       () => {
-        // exportList.unsubscribe()
+        console.log(`getExports(): ${this.exports.value.length} exports`)
+        this.getLabels()
       }
     )
+  }
+
+  getLabels() {
+    let labels = []
+    this.exports.subscribe(val => val.map((x) => labels.push({'label': x.label, 'date': x.date})))
+      let seen = new Set()
+      let uniqueLabels = labels.filter(item => {
+        let k = item.label
+        return seen.has(k) ? false : seen.add(k)
+      })
+    this.labels.next(uniqueLabels)
   }
 
   downloadExport(submissionID: number, ext='csv') {
@@ -87,9 +77,13 @@ export class ExportService {
         if (event.type === HttpEventType.DownloadProgress) {
             let kbLoaded = Math.round(event.loaded / 1024);
             // const percentage = 100 / event.total * event.loaded;
-            console.log(`Downloading ${kbLoaded}Kb.`);
+
+            // this._dloadProgress = new BehaviorSubject(kbLoaded);
+            // this.downloadProgress = kbLoaded
+            // console.log(`Downloading ${kbLoaded}Kb.`);
         }
         if (event.type === HttpEventType.Response) {
+          console.log(event.headers.get("Content-Type"))
           // this.blob = new Blob([event.body], {type: event.headers.get("Content-Type")});
           this._blob = new Blob([event.body], {type: `text/${ext}`});
         }

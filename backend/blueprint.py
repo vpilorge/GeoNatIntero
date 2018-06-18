@@ -7,9 +7,11 @@ from geonature.utils.env import DB
 # from pypnusershub.db.tools import InsufficientRightsError
 # from pypnusershub import routes as fnauth
 
-from .models import (Export, Format, format_map_ext, format_map_mime,
+from .models import (Export, ExportType,
+                     Format, format_map_ext,  # format_map_mime,
                      Standard, standard_map_label)
 # FIXME: backend/frontend/jobs shared conf
+EXPORTS_FOLDER = os.path.join(current_app.static_folder, 'exports')
 
 
 blueprint = Blueprint('export', __name__)
@@ -18,15 +20,18 @@ blueprint = Blueprint('export', __name__)
 @blueprint.route('/add', methods=['GET'])
 # @fnauth.check_auth_cruved('R')
 def add():
-    standard = request.args.get('standard', Standard)
+    selection = request.args.get('selection', '*')
+
+    standards = [Standard.SINP, Standard.DWC]
     formats = [Format.CSV, Format.JSON]
     export = None
-    for format in formats:
-        export = Export(standard, format)
-        DB.session.add(export)
+    for standard in standards:
+        for format in formats:
+            export = Export(selection, standard, format)
+            DB.session.add(export)
     DB.session.commit()
-    submissionID = export.ts()
-    # utc datetime Export.submission -> µs timestamp submissionID
+
+    submissionID = export.ts()  # fallback export ref ?
     return jsonify(id=submissionID, standard=standard, format=format)
 
 
@@ -53,11 +58,12 @@ def add():
 # @fnauth.check_auth_cruved('R')
 def getExport(export):
     # if not file.exists:
-        # trigger export etl
+        # trigger export
+    # super sloooow:
+    # if os.path.exists(fname(export)) and os.path.isfile(fname(export))]
     try:
         return send_from_directory(
-            os.path.join(current_app.static_folder, 'exports'),
-            export,  # mimetype='',  # FIXME: mimetypes
+            EXPORTS_FOLDER, export,  # mimetype='',  # FIXME: mimetypes
             as_attachment=True)
     except Exception as e:
         return str(e)
@@ -66,23 +72,14 @@ def getExport(export):
 @blueprint.route('/exports')
 # @fnauth.check_auth_cruved('R')
 def getExports():
-    exports_list = Export.query\
-                         .filter(Export.status >= 0)\
-                         .group_by(Export.standard, Export.id)\
-                         .all()
-    standards = {}
-    for export in exports_list:
-        std = standard_map_label[export.standard]
-        if not standards.get(std, None):
-            standards[std] = [export.as_dict()]
-        else:
-            standards[std].append(export.as_dict())
-    return jsonify(standards)
+    exports = Export.query\
+                    .filter(Export.status >= 0)\
+                    .group_by(Export.id_export, Export.id)\
+                    .all()
+    return jsonify([export.as_dict() for export in exports])
 
 
 def fname(export):
-    # super sloooow:
-    # if os.path.exists(fname(export)) and os.path.isfile(fname(export))]
     return os.path.join(
         current_app.static_folder, 'exports',
         'export_{std}_{id}.{ext}'.format(

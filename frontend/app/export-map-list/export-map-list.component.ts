@@ -25,6 +25,7 @@ import { CommonService } from "@geonature_common/service/common.service";
 import { DynamicFormComponent } from "@geonature_common/form/dynamic-form/dynamic-form.component";
 import { DynamicFormService } from "@geonature_common/form/dynamic-form/dynamic-form.service";
 import { Export, ExportService } from "../services/export.service";
+import { share } from "rxjs/operator/share";
 
 
 
@@ -35,6 +36,7 @@ import { Export, ExportService } from "../services/export.service";
 export class NgPBar {
   completion = {
     percent: Observable.interval(200).map(val => val % 100).do(val => console.log(val))
+    // percent: Observable.interval(200).map(x => console.log(this._exportService.downloadProgress))
   }
 }
 
@@ -47,6 +49,7 @@ export class NgPBar {
 })
 export class ExportMapListComponent {
   exports$: Observable<Export[]>
+  exportLabels$: Observable<string[]>
   public modalForm : FormGroup;
   public buttonDisabled: boolean = false;
   public today = Date.now();
@@ -55,7 +58,7 @@ export class ExportMapListComponent {
   @ViewChild(NgbModal)
   // @ViewChild(NgPBar)
   constructor(
-    private store: ExportService,
+    private _exportService: ExportService,
     private _commonService: CommonService,
     private _translate: TranslateService,
     private _router: Router,
@@ -69,8 +72,10 @@ export class ExportMapListComponent {
       chooseStandard:['', Validators.required]
     });
 
-    this.exports$ = this.store.exports;
-    this.store.getExports();
+    this.exports$ = this._exportService.exports;
+    this._exportService.getExports();
+
+    this.exportLabels$ = this._exportService.labels
   }
 
   get chooseFormat() {
@@ -106,7 +111,6 @@ export class ExportMapListComponent {
   //Fonction qui bloque le boutton de validation tant que la licence n'est pas checkée
   follow() {
     this.buttonDisabled = !this.buttonDisabled;
-    // this.showme()
   }
 
   //Fonction qui affiche la barre de téléchargement après validation
@@ -114,10 +118,10 @@ export class ExportMapListComponent {
     this.barHide = !this.barHide;
 
     var choice = window.document.querySelector('input[name="options"]:checked');
-
     console.log('format:', this.chooseFormat.value)
     console.log('export_id:', choice.id)
-    this.store.downloadExport(parseFloat(choice.id))
+
+    this._exportService.downloadExport(parseFloat(choice.id))
   }
 
   //Fonction pour avoir un modal vierge si l'on ferme puis réouvre le modal

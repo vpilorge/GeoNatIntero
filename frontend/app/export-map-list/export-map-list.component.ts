@@ -120,7 +120,6 @@ export class ExportMapListComponent {
     var choice = window.document.querySelector('input[name="options"]:checked');
     if (this.barHide) {
       this._exportService.getExport(choice.id, this.chooseStandard.value, this.chooseFormat.value)
-      // this._exportService.downloadExport(parseFloat(export.id), export.standard, export.extension)
     }
   }
 

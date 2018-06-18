@@ -56,13 +56,25 @@ export class ExportService {
 
   getLabels() {
     let labels = []
+    function sortByLabel (a, b) {
+      let labelA = a.label.toUpperCase()
+      let labelB = b.label.toUpperCase()
+      if (labelA < labelB) {
+        return -1
+      }
+      if (labelA > labelB) {
+        return 1
+      }
+      return 0
+    }
+
     this.exports.subscribe(val => val.map((x) => labels.push({'label': x.label, 'date': x.date})))
       let seen = new Set()
       let uniqueLabels = labels.filter(item => {
         let k = item.label
         return seen.has(k) ? false : seen.add(k)
       })
-    this.labels.next(uniqueLabels)
+    this.labels.next(uniqueLabels.sort(sortByLabel))
   }
 
   getExport(label, standard, extension) {

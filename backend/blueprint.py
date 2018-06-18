@@ -72,6 +72,7 @@ def getExport(export):
 @blueprint.route('/exports')
 # @fnauth.check_auth_cruved('R')
 def getExports():
+    # FIXME: export selection, order, limit
     exports = Export.query\
                     .filter(Export.status >= 0)\
                     .group_by(Export.id_export, Export.id)\
@@ -83,4 +84,5 @@ def fname(export):
     rest, ext = export.rsplit('.', 1)
     _, std, id = rest.split('_')
     print('bp.fname():', export, std, id, ext)
-    return 'export_{std}_{id}.{ext}'.format(std=std, id=id, ext=ext), std, id, ext
+    return ('export_{std}_{id}.{ext}'.format(std=std, id=id, ext=ext),
+            std, id, ext)

@@ -43,7 +43,7 @@ export class ExportService {
   getExports() {
     this._api.get(`${apiEndpoint}/exports`).subscribe(
       (exports: Export[]) => {
-        // console.debug('export:', exports)
+        console.debug('export:', exports)
         this.exports.next(exports);
       },
       error => console.error(error),
@@ -72,8 +72,8 @@ export class ExportService {
           (x: Export) => x.label == label && x.standard == standard && x.extension == extension))
     var subscription = source.subscribe(
       x => {
-        console.log(x)
-        this.downloadExport(x.id, x.standard, x.extension)
+        console.log(x, x[0].id)
+        this.downloadExport(parseFloat(x[0].id), x[0].standard, x[0].extension)
       },
       e => console.log(e.message),
       () => console.log('completed')

@@ -75,16 +75,16 @@ class Export(DB.Model):
 
     def __repr__(self):
         return "<Export(id='{}', selection='{}', date='{}', standard='{}', format='{}')>".format(  # noqa
-            self.ts(), self.export.selection, self.start, self.standard, self.format)  # noqa
+            float(self.id), self.export.selection, self.start, self.standard, self.format)  # noqa
 
     def as_dict(self):
         return {
-            'id': float(self.id.timestamp()),
+            'id': float(self.ts()),
             'extension': format_map_ext[self.format],
             'selection': self.export.selection,
             'label': self.export.label,
             'standard': standard_map_label[self.standard],
-            'date': self.start
+            'date': self.start,
         }
 
     def ts(self):

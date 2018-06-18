@@ -13,7 +13,7 @@ from enum import IntEnum
 import psycopg2
 
 dsn = "dbname='geonaturedb' host='localhost' user='geonatuser' password='monpassachanger'"  # noqa
-exports_path = '/home/pat/geonature/backend/static/exports/export_{id}.{ext}'
+exports_path = '/home/pat/geonature/backend/static/exports/export_{std}_{id}.{ext}'
 num_workers = max(1, len(os.sched_getaffinity(0)) - 1)
 queue = asyncio.Queue(maxsize=0)
 
@@ -62,35 +62,46 @@ format_map_func = {
 
 
 class Standard(IntEnum):
-    DRWC = 1
-    ABCD = 2
-    EML = 4
+    NONE = 0
+    SINP = 1
+    DWC = 2
+    ABCD = 4
+    EML = 8
+
+
+standard_map_label = {
+    Standard.NONE: 'RAW',
+    Standard.SINP: 'SINP',
+    Standard.DWC: 'DarwinCore',
+    Standard.ABCD: 'ABCD Schema',
+    Standard.EML: 'EML'
+}
 
 
 def export(definition):
     print(definition)
 
-    def ts_to_export_fname(ts):
-        return (datetime.strptime(str(ts), '%Y-%m-%d %H:%M:%S.%f') - datetime.utcfromtimestamp(0)).total_seconds()
+    def ts(id):
+        return (datetime.strptime(str(id), '%Y-%m-%d %H:%M:%S.%f')
+                - datetime.utcfromtimestamp(0)).total_seconds()
 
     with psycopg2.connect(dsn) as db:
         with db.cursor() as cursor:
-            id, columns, format = definition
-            fname = ts_to_export_fname(id)
+            std, id, ext, columns = definition
 
             if isinstance(columns, str):
                 columns = columns.split(',')
 
-                extension = format or Format.CSV
-                extension = format_map_ext[extension]
+            ext = ext or Format.CSV
 
-                statement = format_map_func[format]()
-                statement = statement.format(
-                    ','.join(['"{}"'.format(column) for column in columns])
-                    if len(columns) > 1 else '"{}"'.format(columns[0]))
+            statement = format_map_func[ext]()
+            statement = statement.format(
+                ','.join(['"{}"'.format(column) for column in columns])
+                if len(columns) > 1 else '*')
 
+            std = standard_map_label[std]
             # with gzip.open
-            with open(exports_path.format(id=fname, ext=extension), 'wb') as export_file:
+            with open(exports_path.format(std=std, id=float(ts(id)), ext=format_map_ext[ext]), 'wb') as export_file:
                 # log_start
                 cursor.execute(
                     'UPDATE gn_intero.t_exports_logs SET start=NOW() WHERE id=%s', (id,))
@@ -104,6 +115,7 @@ def export(definition):
                 except (psycopg2.InternalError, psycopg2.ProgrammingError, Exception) as e:
                     db.rollback()
                     # log_fault
+                    print(e)
                     cursor.execute('UPDATE gn_intero.t_exports_logs SET ("end", "log", "status")=(NULL, %s, -1) WHERE id=%s',
                                    (str(e), id))
                 finally:
@@ -121,7 +133,7 @@ async def run(queue=queue, num_workers=num_workers):
     with psycopg2.connect(dsn) as db:
         with db.cursor() as cursor:
             cursor.execute(
-                'SELECT id, standard, format FROM gn_intero.t_exports_logs WHERE "start" IS NULL AND status=-2 ORDER BY id ASC;')
+                'SELECT l.standard, l.id, l.format, e.selection FROM gn_intero.t_exports_logs l JOIN gn_intero.t_exports e ON e.id = l.id_export WHERE "start" IS NULL AND status=-2 ORDER BY id ASC;')
             for record in cursor.fetchall():
                 print(record)
                 queue.put_nowait({'func': export, 'args': (record)})

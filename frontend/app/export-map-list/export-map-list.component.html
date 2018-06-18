@@ -14,7 +14,7 @@
                 <!-- Liste des exports disponibles au téléchargement -->
             <div class="btn-group btn-group-vertical" data-toggle="buttons" id="button-export">
               <!-- <label *ngFor='let export of  exports$ | async; let i = index;' class="btn btn-primary active"> -->
-              <label *ngFor='let export of exportLabels$ | async' class="btn btn-primary active">
+              <label *ngFor='let export of exportLabels$ | async; let i = index;' class="btn btn-primary active">
                 <input type="radio" name="options" [checked]="i==0" [id]="export.label">Export {{ export.label }} - {{ export.date | date: 'dd/MM/yyyy' }}
               </label>
             </div>
@@ -59,14 +59,15 @@
                                 <select class="form-control" id="chooseFormat" formControlName="chooseFormat" required autocomplete="off">
                                         <option value="csv" selected>CSV</option>
                                         <option value="json">JSON</option>
-                                        <option value="rdf">RDF</option>
+                                        <option value="rdf" disabled>RDF</option>
                                 </select>
                                 <br>
                                 <ul> <li> Choisir un standard </li> </ul>
                                 <select class=form-control id="chooseStandard" formControlName="chooseStandard" required autocomplete="off">
-                                        <option value=un selected>Darwin Core</option>
-                                        <option value=deux disabled>ABCD Schema</option>
-                                        <option value=trois disabled>EML</option>
+                                        <option value="SINP" selected>SINP</option>
+                                        <option value="DWC" selected>Darwin Core</option>
+                                        <option value="ABCD" disabled>ABCD Schema</option>
+                                        <option value="EML" disabled>EML</option>
                                 </select>
                                 <br>
 

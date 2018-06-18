@@ -10,10 +10,12 @@ import {
 import { Observable } from "rxjs/Observable";
 import { BehaviorSubject } from 'rxjs/BehaviorSubject';
 import { share } from 'rxjs/operators/share';
+import { map } from "rxjs/operator/map";
 import 'rxjs/add/observable/interval';
 import 'rxjs/add/operator/takeWhile';
 
 import { AppConfig } from "@geonature_config/app.config";
+import { filter } from "rxjs/operator/filter";
 
 
 export interface Export {
@@ -63,8 +65,23 @@ export class ExportService {
     this.labels.next(uniqueLabels)
   }
 
-  downloadExport(submissionID: number, ext='csv') {
-    const url = `${apiEndpoint}/exports/export_${submissionID}.${ext}`
+  getExport(label, standard, extension) {
+    console.log(label, standard, extension)
+    var source = this.exports.map(
+      (exports: Export[]) => exports.filter(
+          (x: Export) => x.label == label && x.standard == standard && x.extension == extension))
+    var subscription = source.subscribe(
+      x => {
+        console.log(x)
+        this.downloadExport(x.id, x.standard, x.extension)
+      },
+      e => console.log(e.message),
+      () => console.log('completed')
+    )
+  }
+
+  downloadExport(submissionID: number, standard='SINP', ext='csv') {
+    const url = `${apiEndpoint}/exports/export_${standard}_${submissionID}.${ext}`
     console.log(url)
     // window.open(url)
     this._api.get(url, {
@@ -84,8 +101,7 @@ export class ExportService {
         }
         if (event.type === HttpEventType.Response) {
           console.log(event.headers.get("Content-Type"))
-          // this.blob = new Blob([event.body], {type: event.headers.get("Content-Type")});
-          this._blob = new Blob([event.body], {type: `text/${ext}`});
+          this._blob = new Blob([event.body], {type: event.headers.get("Content-Type")});
         }
       },
       (err: HttpErrorResponse) => {

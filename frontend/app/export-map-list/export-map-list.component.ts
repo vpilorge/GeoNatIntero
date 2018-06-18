@@ -118,10 +118,10 @@ export class ExportMapListComponent {
     this.barHide = !this.barHide;
 
     var choice = window.document.querySelector('input[name="options"]:checked');
-    console.log('format:', this.chooseFormat.value)
-    console.log('export_id:', choice.id)
-
-    this._exportService.downloadExport(parseFloat(choice.id))
+    if (this.barHide) {
+      this._exportService.getExport(choice.id, this.chooseStandard.value, this.chooseFormat.value)
+      // this._exportService.downloadExport(parseFloat(export.id), export.standard, export.extension)
+    }
   }
 
   //Fonction pour avoir un modal vierge si l'on ferme puis réouvre le modal

@@ -28,6 +28,14 @@ export interface Export {
 }
 
 const apiEndpoint='http://localhost:8000/interop';
+const StandardMap = new Map([
+  ['NONE', 'RAW',],
+  ['SINP', 'SINP'],
+  ['DWC',  'DarwinCore'],
+  ['ABCD', 'ABCD Schema'],
+  ['EML',  'EML']
+])
+
 
 @Injectable()
 export class ExportService {
@@ -40,15 +48,13 @@ export class ExportService {
     this.labels = <BehaviorSubject<string[]>>new BehaviorSubject([]);
   }
 
+  // FIXME: loader
   getExports() {
     this._api.get(`${apiEndpoint}/exports`).subscribe(
-      (exports: Export[]) => {
-        console.debug('exports:', exports)
-        this.exports.next(exports);
-      },
+      (exports: Export[]) => this.exports.next(exports),
       error => console.error(error),
       () => {
-        console.log(`getExports(): ${this.exports.value.length} exports`)
+        console.info(`getExports(): ${this.exports.value.length} exports`)
         this.getLabels()
       }
     )
@@ -57,8 +63,8 @@ export class ExportService {
   getLabels() {
     let labels = []
     function sortByLabel (a, b) {
-      let labelA = a.label.toUpperCase()
-      let labelB = b.label.toUpperCase()
+      const labelA = a.label.toUpperCase()
+      const labelB = b.label.toUpperCase()
       if (labelA < labelB) {
         return -1
       }
@@ -78,19 +84,11 @@ export class ExportService {
   }
 
   getExport(label, standard, extension) {
-    console.debug(label, standard, extension)
     let source = this.exports.map(
-      (exports: Export[]) => exports.filter(
-          (x: Export) => x.label == label && x.standard == standard && x.extension == extension)  // FIXME: csv
-      )
+      (exports: Export[]) => exports.filter((x: Export) => (x.label == label && x.standard == StandardMap.get(standard) && x.extension == extension)))
 
     let subscription = source.subscribe(
-      x => {
-        // debugger;  // FIXME: csv
-        // console.log(x, x[0].id)
-        console.log(x)
-        this.downloadExport(parseFloat(x[0].id), x[0].standard, x[0].extension)
-      },
+      x => this.downloadExport(parseFloat(x[0].id), x[0].standard, x[0].extension),
       e => console.log(e.message),
       () => console.log('completed')
     )
@@ -98,8 +96,6 @@ export class ExportService {
 
   downloadExport(submissionID: number, standard: string, ext: string) {
     const url = `${apiEndpoint}/exports/export_${standard}_${submissionID}.${ext}`
-    console.log(url)
-    // window.open(url)
     this._api.get(url, {
       headers: new HttpHeaders().set('Content-Type', `text/${ext}`),  // FIXME: Mime
       observe: 'events',
@@ -108,16 +104,16 @@ export class ExportService {
     }).subscribe(
       event => {
         if (event.type === HttpEventType.DownloadProgress) {
+            // FIXME: dload bar
             if (event.hasOwnProperty('total')) {
               const percentage = 100 / event.total * event.loaded;
-              console.log(`Downloaded ${percentage}%.`);
+              console.info(`Downloaded ${percentage}%.`);
             } else {
               let kbLoaded = Math.round(event.loaded / 1024);
-              console.log(`Downloaded ${kbLoaded}Kb.`);
+              console.info(`Downloaded ${kbLoaded}Kb.`);
             }
         }
         if (event.type === HttpEventType.Response) {
-          console.log('API content-type', event.headers.get("Content-Type"))
           this._blob = new Blob([event.body], {type: event.headers.get("Content-Type")});
         }
       },
@@ -131,7 +127,7 @@ export class ExportService {
         let link = document.createElement("a")
         link.href = URL.createObjectURL(this._blob)
         link.setAttribute('visibility','hidden')
-        link.download = `${submissionID}.${ext}`
+        link.download = `export_${standard}_${submissionID}.${ext}`
         link.onload = function() { URL.revokeObjectURL(link.href) }
         document.body.appendChild(link)
         link.click()

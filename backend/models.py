@@ -68,14 +68,16 @@ class Export(DB.Model):
     export = DB.relationship('ExportType', foreign_keys='Export.id_export',
                              backref=DB.backref('ExportType', lazy='dynamic'))
 
-    def __init__(self, standard, format):
+    def __init__(self, standard, format, selection=None):
         self.standard = standard
         self.id = datetime.utcnow()
         self.format = int(format)
+        if selection:
+            self.selection = selection
 
     def __repr__(self):
-        return "<Export(id='{}', selection='{}', date='{}', standard='{}', format='{}')>".format(  # noqa
-            float(self.id), self.export.selection, self.start, self.standard, self.format)  # noqa
+        return "<Export(id='{}', selection='{}', date='{}', standard='{}', format='{}')>".format(  # noqa E501
+            float(self.id), self.export.selection, self.start, self.standard, self.format)  # noqa E501
 
     def as_dict(self):
         return {

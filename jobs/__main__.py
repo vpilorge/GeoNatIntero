@@ -12,8 +12,8 @@ from enum import IntEnum
 # import gzip
 import psycopg2
 
-dsn = "dbname='geonaturedb' host='localhost' user='geonatuser' password='monpassachanger'"  # noqa
-exports_path = '/home/pat/geonature/backend/static/exports/export_{std}_{id}.{ext}'
+dsn = "dbname='geonaturedb' host='localhost' user='geonatuser' password='monpassachanger'"  # noqa E501
+exports_path = '/home/pat/geonature/backend/static/exports/export_{std}_{id}.{ext}'  # noqa E501
 num_workers = max(1, len(os.sched_getaffinity(0)) - 1)
 queue = asyncio.Queue(maxsize=0)
 
@@ -29,12 +29,20 @@ loop = asyncio.get_event_loop()
 loop.set_debug = True
 
 
+# TODO: table link
+# v_export
+# v_export_dwc
+# v_export_dwc_json
+# v_export_sinp
+# v_export_sinp_json
+
+
 def export_csv():
-    return "COPY (SELECT {} FROM gn_intero.v_export) TO STDOUT WITH CSV HEADER DELIMITER ',';"  # noqa
+    return "COPY (SELECT {} FROM gn_intero.v_export) TO STDOUT WITH CSV HEADER DELIMITER ',';"  # noqa E501
 
 
 def export_json():
-    return "COPY (select json_agg(t) from (select {} from gn_intero.v_export) as t) TO STDOUT;"  # noqa
+    return "COPY (select json_agg(t) from (select {} from gn_intero.v_export) as t) TO STDOUT;"  # noqa E501
 
 
 def export_rdf():
@@ -101,22 +109,22 @@ def export(definition):
 
             std = standard_map_label[std]
             # with gzip.open
-            with open(exports_path.format(std=std, id=float(ts(id)), ext=format_map_ext[ext]), 'wb') as export_file:
+            with open(exports_path.format(std=std, id=float(ts(id)), ext=format_map_ext[ext]), 'wb') as export_file:  # noqa E501
                 # log_start
                 cursor.execute(
-                    'UPDATE gn_intero.t_exports_logs SET start=NOW() WHERE id=%s', (id,))
+                    'UPDATE gn_intero.t_exports_logs SET start=NOW() WHERE id=%s', (id,))  # noqa E501
                 try:
 
                     cursor.copy_expert(statement, export_file)
 
                     # log_end
-                    cursor.execute('UPDATE gn_intero.t_exports_logs SET ("end", "log", "status")=(NOW(), %s, %s) WHERE id=%s',
+                    cursor.execute('UPDATE gn_intero.t_exports_logs SET ("end", "log", "status")=(NOW(), %s, %s) WHERE id=%s',  # noqa E501
                                    (cursor.rowcount, 0, id))
-                except (psycopg2.InternalError, psycopg2.ProgrammingError, Exception) as e:
+                except (psycopg2.InternalError, psycopg2.ProgrammingError, Exception) as e:  # noqa E501
                     db.rollback()
                     # log_fault
                     print(e)
-                    cursor.execute('UPDATE gn_intero.t_exports_logs SET ("end", "log", "status")=(NULL, %s, -1) WHERE id=%s',
+                    cursor.execute('UPDATE gn_intero.t_exports_logs SET ("end", "log", "status")=(NULL, %s, -1) WHERE id=%s',  # noqa E501
                                    (str(e), id))
                 finally:
                     db.commit()
@@ -133,7 +141,7 @@ async def run(queue=queue, num_workers=num_workers):
     with psycopg2.connect(dsn) as db:
         with db.cursor() as cursor:
             cursor.execute(
-                'SELECT l.standard, l.id, l.format, e.selection FROM gn_intero.t_exports_logs l JOIN gn_intero.t_exports e ON e.id = l.id_export WHERE "start" IS NULL AND status=-2 ORDER BY id ASC;')
+                'SELECT l.standard, l.id, l.format, e.selection FROM gn_intero.t_exports_logs l JOIN gn_intero.t_exports e ON e.id = l.id_export WHERE "start" IS NULL AND status=-2 ORDER BY id ASC;')  # noqa E501
             for record in cursor.fetchall():
                 print(record)
                 queue.put_nowait({'func': export, 'args': (record)})

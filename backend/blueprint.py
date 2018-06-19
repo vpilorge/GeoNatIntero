@@ -9,7 +9,7 @@ from geonature.utils.env import DB
 
 from .models import (Export,
                      Format, format_map_ext, format_map_mime,
-                     Standard)  # , standard_map_label)
+                     Standard, standard_map_label)
 EXPORTS_FOLDER = os.path.join(current_app.static_folder, 'exports')
 # FIXME: backend/frontend/jobs shared conf
 
@@ -21,16 +21,22 @@ blueprint = Blueprint('export', __name__)
 # @fnauth.check_auth_cruved('R')
 def add():
     selection = request.args.get('selection', '*')
-
+    # FIXME: app logic + fk_selection + add(label)
     standards = [Standard.SINP, Standard.DWC]
     formats = [Format.CSV, Format.JSON]
     export = None
+    exports = []
     for standard in standards:
         for format in formats:
-            export = Export(selection, standard, format)
+            export = Export(int(standard), format, selection)
             DB.session.add(export)
+            exports.append(export)
     DB.session.commit()
-    return jsonify(id=export.id, standard=standard, format=format)
+    return jsonify([{
+            'id': export.id,
+            'standard': standard_map_label[export.standard],
+            'format': format_map_ext[export.format].upper()
+        } for export in exports])
 
 
 # @blueprint.route('/progress/<submissionID>')
@@ -56,12 +62,8 @@ def add():
 # @fnauth.check_auth_cruved('R')
 def getExport(export):
     filename, standard, id, extension = fname(export)
-    p = os.path.join(current_app.static_folder, 'exports', filename)
-    print('file ', p, 'exists ?', os.path.exists(p) and os.path.isfile(p))
     mime = [format_map_mime[k]
             for k, v in format_map_ext.items() if v == extension][0]
-    print('getExport() mime:', mime)
-    # FIXME: mimetype ?
     try:
         return send_from_directory(
             EXPORTS_FOLDER, filename, mimetype=mime, as_attachment=True)
@@ -83,6 +85,5 @@ def getExports():
 def fname(export):
     rest, ext = export.rsplit('.', 1)
     _, std, id = rest.split('_')
-    print('bp.fname():', export, std, id, ext)
     return ('export_{std}_{id}.{ext}'.format(std=std, id=id, ext=ext),
             std, id, ext)

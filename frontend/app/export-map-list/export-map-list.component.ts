@@ -74,7 +74,6 @@ export class ExportMapListComponent {
 
     this.exports$ = this._exportService.exports;
     this._exportService.getExports();
-
     this.exportLabels$ = this._exportService.labels
   }
 
@@ -105,7 +104,7 @@ export class ExportMapListComponent {
     } else if (reason === ModalDismissReasons.BACKDROP_CLICK) {
       return 'by clicking on a backdrop';
     } else {
-      return  `with: ${reason}`;
+      return `with: ${reason}`;
     }
   }
   //Fonction qui bloque le boutton de validation tant que la licence n'est pas checkée
@@ -116,8 +115,7 @@ export class ExportMapListComponent {
   //Fonction qui affiche la barre de téléchargement après validation
   showme() {
     this.barHide = !this.barHide;
-
-    var choice = window.document.querySelector('input[name="options"]:checked');
+    const choice = window.document.querySelector('input[name="options"]:checked');
     if (this.barHide) {
       this._exportService.getExport(choice.id, this.chooseStandard.value, this.chooseFormat.value)
     }

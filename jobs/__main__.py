@@ -32,10 +32,7 @@ loop.set_debug = True
 # TODO: table link
 # v_export
 # v_export_dwc
-# v_export_dwc_json
 # v_export_sinp
-# v_export_sinp_json
-
 
 def export_csv():
     return "COPY (SELECT {} FROM gn_intero.v_export) TO STDOUT WITH CSV HEADER DELIMITER ',';"  # noqa E501

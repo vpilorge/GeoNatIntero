@@ -21,7 +21,7 @@ blueprint = Blueprint('export', __name__)
 # @fnauth.check_auth_cruved('R')
 def add():
     selection = request.args.get('selection', '*')
-    # FIXME: app logic + fk_selection + add(label)
+    # FIXME: app logic + fk_selection + add(...)
     standards = [Standard.SINP, Standard.DWC]
     formats = [Format.CSV, Format.JSON]
     export = None
@@ -78,6 +78,8 @@ def getExports():
     exports = Export.query\
                     .filter(Export.status >= 0)\
                     .group_by(Export.id_export, Export.id)\
+                    .order_by(Export.id.desc())\
+                    .limit(50)\
                     .all()
     return jsonify([export.as_dict() for export in exports])
 

@@ -16,30 +16,26 @@ import {
 } from "@angular/forms";
 import { Router } from "@angular/router";
 import { Observable } from "rxjs/Observable";
-import 'rxjs/add/observable/interval';
-import 'rxjs/add/operator/do';
-import 'rxjs/add/operator/map';
 import { TranslateService } from "@ngx-translate/core";
 import { NgbModal, ModalDismissReasons } from "@ng-bootstrap/ng-bootstrap";
 import { CommonService } from "@geonature_common/service/common.service";
 import { DynamicFormComponent } from "@geonature_common/form/dynamic-form/dynamic-form.component";
 import { DynamicFormService } from "@geonature_common/form/dynamic-form/dynamic-form.service";
-import { Export, ExportService } from "../services/export.service";
-import { share } from "rxjs/operator/share";
+import { Export, ExportService, ExportLabel, StandardMap } from "../services/export.service";
 
 
 
 @Component({
   selector: 'ng-pbar',
-  template: `<p><ngb-progressbar type="info" [value]="completion.percent | async" [striped]="true" [animated]="true"></ngb-progressbar></p>`
+  template: `<p><ngb-progressbar type="info" [value]="progress$ | async" [striped]="true" [animated]="true"></ngb-progressbar></p>`
 })
 export class NgPBar {
-  completion = {
-    percent: Observable.interval(200).map(val => val % 100).do(val => console.log(val))
-    // percent: Observable.interval(200).map(x => console.log(this._exportService.downloadProgress))
+  progress$: Observable<number>
+
+  constructor(private _exportService: ExportService) {
+    this.progress$ = this._exportService.downloadProgress
   }
 }
-
 
 @Component({
   selector: "pnx-export-map-list",
@@ -49,14 +45,12 @@ export class NgPBar {
 })
 export class ExportMapListComponent {
   exports$: Observable<Export[]>
-  exportLabels$: Observable<string[]>
+  exportLabels$: Observable<ExportLabel[]>
   public modalForm : FormGroup;
   public buttonDisabled: boolean = false;
-  public today = Date.now();
   public barHide: boolean = false;
   public closeResult: string;
-  @ViewChild(NgbModal)
-  // @ViewChild(NgPBar)
+
   constructor(
     private _exportService: ExportService,
     private _commonService: CommonService,
@@ -72,8 +66,8 @@ export class ExportMapListComponent {
       chooseStandard:['', Validators.required]
     });
 
-    this.exports$ = this._exportService.exports;
     this._exportService.getExports();
+    this.exports$ = this._exportService.exports;
     this.exportLabels$ = this._exportService.labels
   }
 
@@ -107,17 +101,25 @@ export class ExportMapListComponent {
       return `with: ${reason}`;
     }
   }
+
   //Fonction qui bloque le boutton de validation tant que la licence n'est pas checkée
   follow() {
     this.buttonDisabled = !this.buttonDisabled;
   }
 
-  //Fonction qui affiche la barre de téléchargement après validation
   showme() {
     this.barHide = !this.barHide;
-    const choice = window.document.querySelector('input[name="options"]:checked');
     if (this.barHide) {
-      this._exportService.getExport(choice.id, this.chooseStandard.value, this.chooseFormat.value)
+      const choice = window.document.querySelector('input[name="options"]:checked');
+      const standard = StandardMap.get(this.chooseStandard.value)
+      const extension = this.chooseFormat.value
+      this.exports$.switchMap(
+        (exports: Export[]) => exports.filter(
+          (x: Export) => (x.label == choice.id && x.standard == standard && x.extension == extension))
+      ).subscribe(
+        x => this._exportService.downloadExport(parseFloat(x.id), standard, extension),
+        e => console.error(e.message)
+      )
     }
   }
 
@@ -125,5 +127,4 @@ export class ExportMapListComponent {
   resetModal() {
     this.modalForm.reset();
   }
-
 }

@@ -9,13 +9,10 @@ import {
 } from "@angular/common/http";
 import { Observable } from "rxjs/Observable";
 import { BehaviorSubject } from 'rxjs/BehaviorSubject';
-import { share } from 'rxjs/operators/share';
+import { filter } from "rxjs/operator/filter";
 import { map } from "rxjs/operator/map";
-import 'rxjs/add/observable/interval';
-import 'rxjs/add/operator/takeWhile';
 
 import { AppConfig } from "@geonature_config/app.config";
-import { filter } from "rxjs/operator/filter";
 
 
 export interface Export {
@@ -27,133 +24,113 @@ export interface Export {
   extension: string;
 }
 
+export interface ExportLabel {
+  label: string;
+  date: Date;
+}
+
 const apiEndpoint='http://localhost:8000/interop';
-const StandardMap = new Map([
+
+export const StandardMap = new Map([
   ['NONE', 'RAW',],
   ['SINP', 'SINP'],
   ['DWC',  'DarwinCore'],
-  ['ABCD', 'ABCD Schema'],
-  ['EML',  'EML']
+  // ['ABCD', 'ABCD Schema'],
+  // ['EML',  'EML']
 ])
 
+export const FormatMapMime = new Map([
+  ['csv', 'text/csv'],
+  ['json', 'application/json'],
+  ['rdf', 'application/rdf+xml']
+])
 
 @Injectable()
 export class ExportService {
   exports: BehaviorSubject<Export[]>
-  labels: BehaviorSubject<string[]>
-  private _blob: Blob = null
+  labels: BehaviorSubject<ExportLabel[]>
+  downloadProgress: BehaviorSubject<number>
+  private _blob: Blob
 
   constructor(private _api: HttpClient) {
     this.exports = <BehaviorSubject<Export[]>>new BehaviorSubject([]);
-    this.labels = <BehaviorSubject<string[]>>new BehaviorSubject([]);
+    this.labels = <BehaviorSubject<ExportLabel[]>>new BehaviorSubject([]);
+    this.downloadProgress = <BehaviorSubject<number>>new BehaviorSubject(0.0);
   }
 
-  // FIXME: loader
+  // FIXME: loader ?
   getExports() {
     this._api.get(`${apiEndpoint}/exports`).subscribe(
       (exports: Export[]) => this.exports.next(exports),
       error => console.error(error),
       () => {
-        console.info(`getExports(): ${this.exports.value.length} exports`)
+        console.info(`export service: got ${this.exports.value.length} exports`)
+        console.debug('exports:',  this.exports.value)
         this.getLabels()
       }
     )
   }
 
   getLabels() {
-    let labels = []
-    function sortByLabel (a, b) {
+
+    function byLabel (a, b) {
       const labelA = a.label.toUpperCase()
       const labelB = b.label.toUpperCase()
-      if (labelA < labelB) {
-        return -1
-      }
-      if (labelA > labelB) {
-        return 1
-      }
-      return 0
+      return (labelA < labelB) ? -1 : (labelA > labelB) ? 1 : 0
     }
 
-    this.exports.subscribe(val => val.map((x) => labels.push({'label': x.label, 'date': x.date})))
-      let seen = new Set()
-      let uniqueLabels = labels.filter(item => {
-        let k = item.label
-        return seen.has(k) ? false : seen.add(k)
-      })
-    this.labels.next(uniqueLabels.sort(sortByLabel))
+    let labels = []
+    this.exports.subscribe(xs => xs.map((x) => labels.push({label: x.label, date: x.date})))
+    let seen = new Set()
+    let uniqueLabels = labels.filter((item: ExportLabel) => {
+                                let k = item.label
+                                return seen.has(k) ? false : seen.add(k)
+                              })
+    this.labels.next(uniqueLabels.sort(byLabel))
   }
 
-  getExport(label, standard, extension) {
-    let source = this.exports.map(
-      (exports: Export[]) => exports.filter((x: Export) => (x.label == label && x.standard == StandardMap.get(standard) && x.extension == extension)))
-
-    let subscription = source.subscribe(
-      x => this.downloadExport(parseFloat(x[0].id), x[0].standard, x[0].extension),
-      e => console.log(e.message),
-      () => console.log('completed')
-    )
-  }
-
-  downloadExport(submissionID: number, standard: string, ext: string) {
-    const url = `${apiEndpoint}/exports/export_${standard}_${submissionID}.${ext}`
-    this._api.get(url, {
-      headers: new HttpHeaders().set('Content-Type', `text/${ext}`),  // FIXME: Mime
+  downloadExport(submissionID: number, standard: string, extension: string) {
+    const downloadExportURL = `${apiEndpoint}/exports/export_${standard}_${submissionID}.${extension}`
+    let source = this._api.get(downloadExportURL, {
+      headers: new HttpHeaders().set('Content-Type', `${FormatMapMime.get(extension)}`),
       observe: 'events',
       responseType: 'blob',
       reportProgress: true,
-    }).subscribe(
+    })
+    let subscription = source.subscribe(
       event => {
         if (event.type === HttpEventType.DownloadProgress) {
-            // FIXME: dload bar
-            if (event.hasOwnProperty('total')) {
-              const percentage = 100 / event.total * event.loaded;
-              console.info(`Downloaded ${percentage}%.`);
-            } else {
-              let kbLoaded = Math.round(event.loaded / 1024);
-              console.info(`Downloaded ${kbLoaded}Kb.`);
-            }
-        }
-        if (event.type === HttpEventType.Response) {
-          this._blob = new Blob([event.body], {type: event.headers.get("Content-Type")});
-        }
-      },
-      (err: HttpErrorResponse) => {
-        console.log(err.error);
-        console.log(err.name);
-        console.log(err.message);
-        console.log(err.status);
-      },
-      () => {
-        let link = document.createElement("a")
-        link.href = URL.createObjectURL(this._blob)
-        link.setAttribute('visibility','hidden')
-        link.download = `export_${standard}_${submissionID}.${ext}`
-        link.onload = function() { URL.revokeObjectURL(link.href) }
-        document.body.appendChild(link)
-        link.click()
-        document.body.removeChild(link)
+          if (event.hasOwnProperty('total')) {
+            const percentage = Math.round((100 / event.total) * event.loaded);
+            this.downloadProgress.next(percentage)
+            console.debug(`Downloaded ${percentage}%.`);
+          } else {
+            const kb = Number.parsefloat(event.loaded / 1024).toFixed(2);
+             this.downloadProgress.next(kb)
+            console.debug(`Downloaded ${kb}Kb.`);
+          }
       }
-    );
-  }
+      if (event.type === HttpEventType.Response) {
+        this._blob = new Blob([event.body], {type: event.headers.get('Content-Type')});
+      }
+    },
+    (e: HttpErrorResponse) => {
+      console.error(e.error);
+      console.error(e.name);
+      console.error(e.message);
+      console.error(e.status);
+    },
+    () => this.saveBlob(this._blob, `export_${standard}_${submissionID}.${extension}`)
+  )}
 
-
-  /*
-  getExportProgress(submissionID: number, ext='csv') {
-    let progress = Observable.interval(1500)
-      .switchMap(() => this._api.get(`${apiEndpoint}/progress/${submissionID}`))
-      .map(data => data.json())
-      .takeWhile(data => data.status === '-2')
-      .subscribe(
-        data => {
-          // progress feedback:
-          // https://www.postgresql.org/message-id/CADdR5ny_0dFwnD%2BsuBnV1Vz6NDKbFHeWoV1EDv9buhDCtc3aAA%40mail.gmail.com
-          console.debug(data)
-        },
-        error => console.error(error),
-        () => {
-          progress.unsubscribe();
-          window.open(`${apiEndpoint}/exports/export_${submissionID}.${data.format}`);
-        });
+  saveBlob(blob, filename) {
+    let link = document.createElement('a')
+    link.href = URL.createObjectURL(blob)
+    link.setAttribute('visibility','hidden')
+    link.download = filename
+    link.onload = function() { URL.revokeObjectURL(link.href) }
+    document.body.appendChild(link)
+    link.click()
+    document.body.removeChild(link)
   }
-  */
 }
